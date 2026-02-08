@@ -1,0 +1,163 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  LOCKED
+}
+
+enum BookingStatus {
+  BOOKED
+  CANCELLED
+}
+
+enum BookingCreatedBy {
+  ADMIN
+  CLIENT
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  role      UserRole @default(STAFF)
+  name      String?
+  timezone  String   @default("America/New_York")
+  calendarToken String @unique @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions   Session[]
+  magicLinks MagicLink[]
+
+  availabilityBlocks AvailabilityBlock[]
+  staffBookings      Booking[] @relation("StaffBookings")
+  createdBookings    Booking[] @relation("AdminCreatedBookings")
+
+  auditActions AuditLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  ip        String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model MagicLink {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+  ip        String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model EventType {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String
+  durationMinutes Int
+  bufferMinutes   Int      @default(0)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bookings Booking[]
+}
+
+model AvailabilityBlock {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startAt   DateTime
+  endAt     DateTime
+  status    AvailabilityStatus @default(AVAILABLE)
+  lockedAt  DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([userId, startAt])
+  @@index([userId, endAt])
+}
+
+model Booking {
+  id            String          @id @default(cuid())
+  eventTypeId   String
+  eventType     EventType       @relation(fields: [eventTypeId], references: [id], onDelete: Restrict)
+
+  staffUserId   String
+  staffUser     User            @relation("StaffBookings", fields: [staffUserId], references: [id], onDelete: Restrict)
+
+  clientName    String
+  clientEmail   String
+
+  startAt       DateTime
+  endAt         DateTime
+  status        BookingStatus   @default(BOOKED)
+  createdBy     BookingCreatedBy
+
+  createdByUserId String?
+  createdByUser   User?         @relation("AdminCreatedBookings", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  lockedAt      DateTime?
+  cancelledAt   DateTime?
+  cancelReason  String?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([staffUserId, startAt])
+  @@index([eventTypeId, startAt])
+  @@index([clientEmail])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actorUser   User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  entityType  String
+  entityId    String
+  action      String
+  beforeJson  Json?
+  afterJson   Json?
+
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@index([createdAt])
+}

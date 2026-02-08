@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: upsidecalendar-web
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run prisma:generate && npm run db:migrate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: MAGIC_LINK_SECRET
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: AVAILABILITY_CUTOFF_HOURS
+        value: "24"
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
