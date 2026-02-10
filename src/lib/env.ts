@@ -2,8 +2,12 @@ import { z } from "zod";
 
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
-  APP_BASE_URL: z.string().url().optional(),
-  MAGIC_LINK_SECRET: z.string().min(16).optional(),
+  // Be tolerant here: we'll normalize/validate where used.
+  // A mis-set APP_BASE_URL should never crash the app.
+  APP_BASE_URL: z.string().min(1).optional(),
+  // No longer required for magic links; keep optional without strict length validation
+  // so a misconfiguration won't crash production flows.
+  MAGIC_LINK_SECRET: z.string().optional(),
   EMAIL_FROM: z.string().min(3).optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
   ADMIN_EMAILS: z.string().optional(), // comma-separated

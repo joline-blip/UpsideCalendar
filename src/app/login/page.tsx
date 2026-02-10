@@ -11,8 +11,14 @@ async function requestLink(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "").trim();
   if (!email) return;
-  const { link } = await createMagicLink(email);
-  await sendMagicLinkEmail(email, link);
+  try {
+    const { link } = await createMagicLink(email);
+    await sendMagicLinkEmail(email, link);
+  } catch (err) {
+    // Prevent an app-level error page if email/db/env is misconfigured.
+    console.error("[Login] Failed to create/send magic link", err);
+    return;
+  }
 }
 
 export default function LoginPage() {
