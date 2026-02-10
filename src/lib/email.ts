@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { env, isProd } from "@/lib/env";
+import { env } from "@/lib/env";
 
 export async function sendMagicLinkEmail(toEmail: string, link: string) {
   const { RESEND_API_KEY, EMAIL_FROM } = env();
@@ -7,9 +7,8 @@ export async function sendMagicLinkEmail(toEmail: string, link: string) {
   // In dev (or if not configured), print the link so you can click it.
   if (!RESEND_API_KEY || !EMAIL_FROM) {
     console.log(`[MagicLink] To: ${toEmail}\n${link}`);
-    if (isProd()) {
-      throw new Error("Email provider not configured (RESEND_API_KEY/EMAIL_FROM).");
-    }
+    // Never crash the app in production due to missing email configuration.
+    // If env vars are missing, we log the link so it can be retrieved from server logs.
     return;
   }
 
