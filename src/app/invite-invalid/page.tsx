@@ -1,21 +1,14 @@
-import { consumeMagicLinkToken } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
-export default async function InviteTokenPage({
-  params,
+export default async function InviteInvalidPage({
+  searchParams,
 }: {
-  params: { token?: string } | Promise<{ token?: string }>;
+  searchParams: Promise<{ reason?: string }> | { reason?: string };
 }) {
-  const { token } = await params;
-  const result = await consumeMagicLinkToken(token);
-
-  if (result.ok) {
-    if (result.user.role === "ADMIN") redirect("/admin");
-    redirect("/staff/availability");
-  }
+  const sp = await searchParams;
+  const reason = sp.reason ?? "invalid";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
@@ -25,7 +18,7 @@ export default async function InviteTokenPage({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            This sign-in link is {result.reason}. Please request a new one.
+            This sign-in link is {reason}. Please request a new one.
           </p>
           <div className="mt-4">
             <a className="text-sm underline" href="/login">

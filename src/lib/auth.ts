@@ -2,10 +2,10 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { addHours, addDays, isBefore } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { env, isProd } from "@/lib/env";
+import { env } from "@/lib/env";
 import { randomToken, sha256Hex } from "@/lib/crypto";
 
-const SESSION_COOKIE_NAME = "upside_session";
+export const SESSION_COOKIE_NAME = "upside_session";
 const MAGIC_LINK_TTL_HOURS = 1;
 const SESSION_TTL_DAYS = 30;
 
@@ -80,7 +80,7 @@ export async function createMagicLink(email: string) {
   return { user, link, expiresAt };
 }
 
-async function createSession(userId: string) {
+export async function createSessionInDb(userId: string) {
   const expiresAt = addDays(new Date(), SESSION_TTL_DAYS);
   const meta = await requestMeta();
 
@@ -91,17 +91,6 @@ async function createSession(userId: string) {
       ip: meta.ip,
       userAgent: meta.userAgent,
     },
-  });
-
-  const c = await cookies();
-  c.set({
-    name: SESSION_COOKIE_NAME,
-    value: session.id,
-    httpOnly: true,
-    secure: isProd(),
-    sameSite: "lax",
-    path: "/",
-    expires: session.expiresAt,
   });
 
   return session;
@@ -140,7 +129,7 @@ export async function consumeMagicLinkToken(token: unknown) {
     data: { usedAt: new Date() },
   });
 
-  const session = await createSession(magic.userId);
+  const session = await createSessionInDb(magic.userId);
   return { ok: true as const, user: magic.user, session };
 }
 
