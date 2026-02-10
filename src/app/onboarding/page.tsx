@@ -3,13 +3,22 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { OnboardingForm } from "@/app/onboarding/OnboardingForm";
 
 export const dynamic = "force-dynamic";
 
-async function completeProfile(formData: FormData) {
+type State = {
+  ok: boolean;
+  formError?: string;
+  fieldErrors?: Partial<
+    Record<
+      "firstName" | "lastName" | "address" | "markets" | "password" | "confirmPassword",
+      string
+    >
+  >;
+};
+
+async function completeProfile(prevState: State, formData: FormData): Promise<State> {
   "use server";
   const user = await requireUser();
 
@@ -20,9 +29,19 @@ async function completeProfile(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-  if (!firstName || !lastName || !address) return;
-  if (!password || password.length < 8) return;
-  if (password !== confirmPassword) return;
+  const fieldErrors: NonNullable<State["fieldErrors"]> = {};
+  if (!firstName) fieldErrors.firstName = "First name is required.";
+  if (!lastName) fieldErrors.lastName = "Last name is required.";
+  if (!address) fieldErrors.address = "Address is required.";
+  if (!password || password.length < 8) fieldErrors.password = "Password must be at least 8 characters.";
+  if (!confirmPassword) fieldErrors.confirmPassword = "Please confirm your password.";
+  if (password && confirmPassword && password !== confirmPassword) {
+    fieldErrors.confirmPassword = "Passwords do not match.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return { ok: false, fieldErrors };
+  }
 
   const markets = marketsRaw
     .split(",")
@@ -61,52 +80,7 @@ export default async function OnboardingPage() {
           <CardDescription>This is a one-time step after your invite.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={completeProfile} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email (username)</Label>
-              <Input id="email" name="email" value={user.email} disabled />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First name</Label>
-                <Input id="firstName" name="firstName" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last name</Label>
-                <Input id="lastName" name="lastName" required />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input id="address" name="address" placeholder="Street, City, State ZIP" required />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="markets">Markets</Label>
-              <Input
-                id="markets"
-                name="markets"
-                placeholder="Comma-separated (e.g. Hartford, New Haven, Stamford)"
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password" type="password" minLength={8} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm password</Label>
-                <Input id="confirmPassword" name="confirmPassword" type="password" minLength={8} required />
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full">
-              Save and continue
-            </Button>
-          </form>
+          <OnboardingForm email={user.email} action={completeProfile} />
         </CardContent>
       </Card>
     </div>
