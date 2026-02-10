@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export default function GlobalError({
   error,
   reset,
@@ -7,6 +9,14 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [href] = useState<string>(() => {
+    try {
+      return window.location.href;
+    } catch {
+      return "";
+    }
+  });
+
   return (
     <html lang="en">
       <body style={{ fontFamily: "ui-sans-serif, system-ui", padding: 24 }}>
@@ -16,7 +26,13 @@ export default function GlobalError({
         </p>
         <div style={{ marginTop: 12 }}>
           <div>
+            <strong>URL:</strong> {href || "(unknown)"}
+          </div>
+          <div>
             <strong>Digest:</strong> {error.digest ?? "(none)"}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <strong>Error:</strong> {error.name}: {error.message}
           </div>
         </div>
 
