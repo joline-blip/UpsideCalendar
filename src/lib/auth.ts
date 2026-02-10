@@ -34,9 +34,16 @@ export async function upsertUserByEmail(emailRaw: string) {
   });
 }
 
-function baseUrl() {
+async function baseUrl() {
   const configured = env().APP_BASE_URL;
   if (configured) return configured.replace(/\/+$/, "");
+
+  // Try to derive from request (works well on Render via proxy headers).
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (host) return `${proto}://${host}`.replace(/\/+$/, "");
+
   // Fallback for local dev
   return "http://localhost:3000";
 }
@@ -53,7 +60,9 @@ export async function createMagicLink(email: string) {
   const user = await upsertUserByEmail(email);
 
   const token = randomToken(32);
-  const tokenHash = sha256Hex(`${env().MAGIC_LINK_SECRET ?? "dev"}:${token}`);
+  // Hash the raw token only (no secret pepper). The token is already high-entropy,
+  // and this avoids "Link not valid" issues caused by environment inconsistencies.
+  const tokenHash = sha256Hex(token);
   const expiresAt = addHours(new Date(), MAGIC_LINK_TTL_HOURS);
   const meta = await requestMeta();
 
@@ -67,7 +76,7 @@ export async function createMagicLink(email: string) {
     },
   });
 
-  const link = `${baseUrl()}/invite/${encodeURIComponent(token)}`;
+  const link = `${await baseUrl()}/invite/${encodeURIComponent(token)}`;
   return { user, link, expiresAt };
 }
 
@@ -111,7 +120,7 @@ export async function signOut() {
 }
 
 export async function consumeMagicLinkToken(token: string) {
-  const tokenHash = sha256Hex(`${env().MAGIC_LINK_SECRET ?? "dev"}:${token}`);
+  const tokenHash = sha256Hex(token);
   const magic = await prisma.magicLink.findUnique({
     where: { tokenHash },
     include: { user: true },
