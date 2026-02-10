@@ -16,7 +16,7 @@ async function signIn(formData: FormData) {
     const result = await signInWithPassword(email, password);
     if (!result.ok) return;
     await setSessionCookie(result.session);
-    if (result.user.role === "STAFF" && !result.user.profileCompletedAt) redirect("/onboarding");
+    if (!result.user.profileCompletedAt || !result.user.passwordHash) redirect("/onboarding");
     redirect(result.user.role === "ADMIN" ? "/admin" : "/staff/availability");
   } catch (err) {
     console.error("[Login] Failed to sign in", err);
@@ -47,6 +47,11 @@ export default function LoginPage() {
             </Button>
             <p className="text-sm text-muted-foreground">
               First time here? Use the invite link the admin emailed you to set up your profile and password.
+            </p>
+            <p className="text-sm">
+              <a className="underline" href="/login/magic">
+                Need a one-time sign-in link instead?
+              </a>
             </p>
           </form>
         </CardContent>
