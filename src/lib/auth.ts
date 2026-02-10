@@ -119,7 +119,11 @@ export async function signOut() {
   c.delete(SESSION_COOKIE_NAME);
 }
 
-export async function consumeMagicLinkToken(token: string) {
+export async function consumeMagicLinkToken(token: unknown) {
+  if (typeof token !== "string" || !token) {
+    return { ok: false as const, reason: "invalid" as const };
+  }
+
   const tokenHash = sha256Hex(token);
   const magic = await prisma.magicLink.findUnique({
     where: { tokenHash },

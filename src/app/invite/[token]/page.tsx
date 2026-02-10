@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
 export default async function InviteTokenPage({
   params,
 }: {
-  params: { token: string };
+  params: { token?: string } | Promise<{ token?: string }>;
 }) {
-  const { token } = params;
+  const { token } = await params;
   const result = await consumeMagicLinkToken(token);
 
   if (result.ok) {
