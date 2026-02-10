@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { addHours, format } from "date-fns";
+import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ async function deleteAvailability(formData: FormData) {
 
 export default async function StaffAvailabilityPage() {
   const user = await requireUser();
+  if (!user.profileCompletedAt) redirect("/onboarding");
 
   const blocks = await prisma.availabilityBlock.findMany({
     where: { userId: user.id },

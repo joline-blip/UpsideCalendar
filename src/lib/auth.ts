@@ -4,6 +4,7 @@ import { addHours, addDays, isBefore } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { randomToken, sha256Hex } from "@/lib/crypto";
+import { verifyPassword } from "@/lib/password";
 
 export const SESSION_COOKIE_NAME = "upside_session";
 const MAGIC_LINK_TTL_HOURS = 1;
@@ -94,6 +95,31 @@ export async function createSessionInDb(userId: string) {
   });
 
   return session;
+}
+
+export async function setSessionCookie(session: { id: string; expiresAt: Date }) {
+  const c = await cookies();
+  c.set({
+    name: SESSION_COOKIE_NAME,
+    value: session.id,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: session.expiresAt,
+  });
+}
+
+export async function signInWithPassword(emailRaw: string, password: string) {
+  const email = emailRaw.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || !user.passwordHash) return { ok: false as const };
+
+  const valid = await verifyPassword(password, user.passwordHash);
+  if (!valid) return { ok: false as const };
+
+  const session = await createSessionInDb(user.id);
+  return { ok: true as const, user, session };
 }
 
 export async function signOut() {

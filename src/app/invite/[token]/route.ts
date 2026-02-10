@@ -30,7 +30,8 @@ export async function GET(
     return NextResponse.redirect(url);
   }
 
-  const dest = result.user.role === "ADMIN" ? "/admin" : "/staff/availability";
+  const dest =
+    result.user.role === "STAFF" && !result.user.profileCompletedAt ? "/onboarding" : result.user.role === "ADMIN" ? "/admin" : "/staff/availability";
   const url = new URL(dest, base);
   const res = NextResponse.redirect(url);
 

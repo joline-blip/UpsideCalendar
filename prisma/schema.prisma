@@ -38,7 +38,15 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   role      UserRole @default(STAFF)
-  name      String?
+  // Profile (set on first login after invite)
+  firstName String?
+  lastName  String?
+  address   String?
+  markets   String[] @default([])
+  profileCompletedAt DateTime?
+
+  // Password login (email is the username)
+  passwordHash String?
   timezone  String   @default("America/New_York")
   calendarToken String @unique @default(cuid())
   createdAt DateTime @default(now())
