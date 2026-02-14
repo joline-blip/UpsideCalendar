@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export const dynamic = "force-dynamic";
 
@@ -235,11 +236,11 @@ export default async function AdminSettingsPage({
                         <input type="hidden" name="userId" value={u.id} />
                         <div className="space-y-1">
                           <Label>Password</Label>
-                          <Input name="password" type="password" minLength={8} required />
+                          <PasswordInput name="password" minLength={8} required />
                         </div>
                         <div className="space-y-1">
                           <Label>Confirm</Label>
-                          <Input name="confirmPassword" type="password" minLength={8} required />
+                          <PasswordInput name="confirmPassword" minLength={8} required />
                         </div>
                         <Button type="submit" variant="secondary">
                           Set password

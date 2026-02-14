@@ -2,6 +2,7 @@ import { setSessionCookie, signInWithPassword } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoginForm } from "@/app/login/LoginForm";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,8 @@ async function signIn(_prev: State, formData: FormData): Promise<State> {
     if (!result.user.profileCompletedAt) redirect("/signup");
     redirect("/staff/availability");
   } catch (err) {
+    // Let Next.js handle redirects (redirect() throws).
+    if (isRedirectError(err)) throw err;
     console.error("[Login] Failed to sign in", err);
     return { ok: false, formError: "Something went wrong. Please try again." };
   }
