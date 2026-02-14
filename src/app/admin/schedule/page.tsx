@@ -113,13 +113,16 @@ export default async function AdminSchedulePage() {
             <div className="text-sm text-muted-foreground">UpsideCalendar</div>
             <div className="font-medium">Admin schedule</div>
           </div>
-          <div className="flex gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm">
             <Link className="underline" href="/admin">
               Admin home
             </Link>
             <Link className="underline" href="/admin/bookings">
               Bookings
             </Link>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/logout">Log out</Link>
+            </Button>
           </div>
         </div>
       </header>

@@ -70,6 +70,9 @@ export default async function AdminHomePage() {
               Audit
             </Link>
             <div className="text-muted-foreground">{admin.email}</div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/logout">Log out</Link>
+            </Button>
           </div>
         </div>
       </header>
