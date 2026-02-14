@@ -67,6 +67,10 @@ export async function signInWithPassword(emailRaw: string, password: string) {
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) return { ok: false as const };
 
+  if (user.role === "STAFF" && !user.approvedAt) {
+    return { ok: false as const, reason: "not_approved" as const };
+  }
+
   const session = await createSessionInDb(user.id);
   return { ok: true as const, user, session };
 }
@@ -104,6 +108,7 @@ export async function getCurrentUser() {
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role === "STAFF" && !user.approvedAt) redirect("/login");
   return user;
 }
 

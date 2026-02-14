@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { writeAuditLog } from "@/lib/audit";
+import { getAppConfig } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +40,15 @@ async function createEventType(formData: FormData) {
 
 export default async function AdminHomePage() {
   const admin = await requireAdmin();
+  const config = await getAppConfig();
 
   const staff = await prisma.user.findMany({
     where: { role: "STAFF" },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+
+  const pendingCount = await prisma.user.count({ where: { role: "STAFF", approvedAt: null } });
 
   const eventTypes = await prisma.eventType.findMany({
     orderBy: { createdAt: "desc" },
@@ -69,6 +73,9 @@ export default async function AdminHomePage() {
             <Link className="underline" href="/admin/audit">
               Audit
             </Link>
+            <Link className="underline" href="/admin/settings">
+              Settings{pendingCount ? ` (${pendingCount} pending)` : ""}
+            </Link>
             <div className="text-muted-foreground">{admin.email}</div>
             <Button asChild variant="outline" size="sm">
               <Link href="/logout">Log out</Link>
@@ -81,7 +88,9 @@ export default async function AdminHomePage() {
         <Card>
           <CardHeader>
             <CardTitle>Staff</CardTitle>
-            <CardDescription>Brand ambassadors who have signed up.</CardDescription>
+            <CardDescription>
+              Brand ambassadors who have signed up. Signup policy: <span className="font-medium">{config.baSignupMode}</span>
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -91,7 +100,14 @@ export default async function AdminHomePage() {
               ) : (
                 <ul className="space-y-1 text-sm text-muted-foreground">
                   {staff.map((u) => (
-                    <li key={u.id}>{u.email}</li>
+                    <li key={u.id}>
+                      {u.email}{" "}
+                      {u.approvedAt ? (
+                        <span className="text-emerald-700">• approved</span>
+                      ) : (
+                        <span className="text-amber-700">• pending</span>
+                      )}
+                    </li>
                   ))}
                 </ul>
               )}

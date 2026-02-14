@@ -4,12 +4,14 @@ import { isAdminEmail, createSessionInDb, setSessionCookie } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SignupForm } from "@/app/signup/SignupForm";
+import { getAppConfig } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
 type State = {
   ok: boolean;
   formError?: string;
+  successMessage?: string;
   fieldErrors?: Partial<
     Record<
       "email" | "firstName" | "lastName" | "address" | "markets" | "password" | "confirmPassword",
@@ -20,6 +22,11 @@ type State = {
 
 async function signUp(_prev: State, formData: FormData): Promise<State> {
   "use server";
+
+  const config = await getAppConfig();
+  if (config.baSignupMode === "DISABLED") {
+    return { ok: false, formError: "Sign up is currently disabled. Please contact an admin." };
+  }
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const firstName = String(formData.get("firstName") ?? "").trim();
@@ -67,6 +74,7 @@ async function signUp(_prev: State, formData: FormData): Promise<State> {
       markets,
       passwordHash,
       profileCompletedAt: new Date(),
+      approvedAt: config.baSignupMode === "OPEN" ? new Date() : null,
     },
     create: {
       email,
@@ -77,8 +85,16 @@ async function signUp(_prev: State, formData: FormData): Promise<State> {
       markets,
       passwordHash,
       profileCompletedAt: new Date(),
+      approvedAt: config.baSignupMode === "OPEN" ? new Date() : null,
     },
   });
+
+  if (config.baSignupMode === "ADMIN_APPROVAL") {
+    return {
+      ok: true,
+      successMessage: "Account created. You can sign in after an admin approves your account.",
+    };
+  }
 
   const session = await createSessionInDb(user.id);
   await setSessionCookie(session);

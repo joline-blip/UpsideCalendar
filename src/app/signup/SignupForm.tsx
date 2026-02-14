@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 type State = {
   ok: boolean;
   formError?: string;
+  successMessage?: string;
   fieldErrors?: Partial<
     Record<
       "email" | "firstName" | "lastName" | "address" | "markets" | "password" | "confirmPassword",
@@ -23,6 +24,21 @@ export function SignupForm({
 }) {
   const [state, formAction, pending] = useActionState(action, { ok: false, fieldErrors: {} });
   const fe = state.fieldErrors ?? {};
+
+  if (state.ok && state.successMessage) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm">
+          {state.successMessage}
+        </div>
+        <p className="text-sm">
+          <a className="underline" href="/login">
+            Back to sign in
+          </a>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="space-y-4">
