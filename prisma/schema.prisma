@@ -53,7 +53,6 @@ model User {
   updatedAt DateTime @updatedAt
 
   sessions   Session[]
-  magicLinks MagicLink[]
 
   availabilityBlocks AvailabilityBlock[]
   staffBookings      Booking[] @relation("StaffBookings")
@@ -69,21 +68,6 @@ model Session {
   createdAt DateTime @default(now())
   expiresAt DateTime
   revokedAt DateTime?
-  ip        String?
-  userAgent String?
-
-  @@index([userId])
-  @@index([expiresAt])
-}
-
-model MagicLink {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-  usedAt    DateTime?
   ip        String?
   userAgent String?
 

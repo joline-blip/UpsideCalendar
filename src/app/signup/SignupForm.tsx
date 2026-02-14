@@ -5,29 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type FieldErrors = Partial<
-  Record<
-    "firstName" | "lastName" | "address" | "markets" | "password" | "confirmPassword",
-    string
-  >
->;
-
 type State = {
   ok: boolean;
   formError?: string;
-  fieldErrors?: FieldErrors;
+  fieldErrors?: Partial<
+    Record<
+      "email" | "firstName" | "lastName" | "address" | "markets" | "password" | "confirmPassword",
+      string
+    >
+  >;
 };
 
-const initialState: State = { ok: false, fieldErrors: {} };
-
-export function OnboardingForm({
-  email,
+export function SignupForm({
   action,
 }: {
-  email: string;
-  action: (prevState: State, formData: FormData) => Promise<State>;
+  action: (prev: State, formData: FormData) => Promise<State>;
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [state, formAction, pending] = useActionState(action, { ok: false, fieldErrors: {} });
   const fe = state.fieldErrors ?? {};
 
   return (
@@ -40,7 +34,8 @@ export function OnboardingForm({
 
       <div className="space-y-2">
         <Label htmlFor="email">Email (username)</Label>
-        <Input id="email" name="email" value={email} disabled />
+        <Input id="email" name="email" type="email" required aria-invalid={Boolean(fe.email)} />
+        {fe.email ? <p className="text-sm text-destructive">{fe.email}</p> : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -102,15 +97,18 @@ export function OnboardingForm({
             required
             aria-invalid={Boolean(fe.confirmPassword)}
           />
-          {fe.confirmPassword ? (
-            <p className="text-sm text-destructive">{fe.confirmPassword}</p>
-          ) : null}
+          {fe.confirmPassword ? <p className="text-sm text-destructive">{fe.confirmPassword}</p> : null}
         </div>
       </div>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Saving…" : "Save and continue"}
+        {pending ? "Creating…" : "Create account"}
       </Button>
+      <p className="text-sm">
+        <a className="underline" href="/login">
+          Already have an account? Sign in
+        </a>
+      </p>
     </form>
   );
 }

@@ -71,7 +71,7 @@ async function deleteAvailability(formData: FormData) {
 
 export default async function StaffAvailabilityPage() {
   const user = await requireUser();
-  if (!user.profileCompletedAt) redirect("/onboarding");
+  if (!user.profileCompletedAt) redirect("/signup");
 
   const blocks = await prisma.availabilityBlock.findMany({
     where: { userId: user.id },

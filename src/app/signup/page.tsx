@@ -1,9 +1,9 @@
-import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
+import { isAdminEmail, createSessionInDb, setSessionCookie } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { OnboardingForm } from "@/app/onboarding/OnboardingForm";
+import { SignupForm } from "@/app/signup/SignupForm";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +12,16 @@ type State = {
   formError?: string;
   fieldErrors?: Partial<
     Record<
-      "firstName" | "lastName" | "address" | "markets" | "password" | "confirmPassword",
+      "email" | "firstName" | "lastName" | "address" | "markets" | "password" | "confirmPassword",
       string
     >
   >;
 };
 
-async function completeProfile(prevState: State, formData: FormData): Promise<State> {
+async function signUp(_prev: State, formData: FormData): Promise<State> {
   "use server";
-  const user = await requireUser();
 
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
@@ -30,18 +30,20 @@ async function completeProfile(prevState: State, formData: FormData): Promise<St
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
   const fieldErrors: NonNullable<State["fieldErrors"]> = {};
+  if (!email) fieldErrors.email = "Email is required.";
+  if (email && !email.includes("@")) fieldErrors.email = "Enter a valid email.";
   if (!firstName) fieldErrors.firstName = "First name is required.";
   if (!lastName) fieldErrors.lastName = "Last name is required.";
   if (!address) fieldErrors.address = "Address is required.";
   if (!password || password.length < 8) fieldErrors.password = "Password must be at least 8 characters.";
   if (!confirmPassword) fieldErrors.confirmPassword = "Please confirm your password.";
-  if (password && confirmPassword && password !== confirmPassword) {
-    fieldErrors.confirmPassword = "Passwords do not match.";
+  if (password && confirmPassword && password !== confirmPassword) fieldErrors.confirmPassword = "Passwords do not match.";
+
+  if (email && isAdminEmail(email)) {
+    fieldErrors.email = "This email is reserved for admin sign-in. Use the admin login page.";
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
-    return { ok: false, fieldErrors };
-  }
+  if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
 
   const markets = marketsRaw
     .split(",")
@@ -49,11 +51,26 @@ async function completeProfile(prevState: State, formData: FormData): Promise<St
     .filter(Boolean)
     .slice(0, 50);
 
-  const passwordHash = await hashPassword(password);
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing?.passwordHash) {
+    return { ok: false, formError: "An account with this email already exists. Please sign in." };
+  }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
+  const passwordHash = await hashPassword(password);
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: {
+      role: "STAFF",
+      firstName,
+      lastName,
+      address,
+      markets,
+      passwordHash,
+      profileCompletedAt: new Date(),
+    },
+    create: {
+      email,
+      role: "STAFF",
       firstName,
       lastName,
       address,
@@ -63,27 +80,23 @@ async function completeProfile(prevState: State, formData: FormData): Promise<St
     },
   });
 
-  redirect(user.role === "ADMIN" ? "/admin" : "/staff/availability");
+  const session = await createSessionInDb(user.id);
+  await setSessionCookie(session);
+  redirect("/staff/availability");
 }
 
-export default async function OnboardingPage() {
-  const user = await requireUser();
-  if (user.profileCompletedAt && user.passwordHash) {
-    redirect(user.role === "ADMIN" ? "/admin" : "/staff/availability");
-  }
-
+export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle>Finish setting up your profile</CardTitle>
-          <CardDescription>This is a one-time step after your invite.</CardDescription>
+          <CardTitle>Sign up</CardTitle>
+          <CardDescription>Brand ambassadors create an account here.</CardDescription>
         </CardHeader>
         <CardContent>
-          <OnboardingForm email={user.email} action={completeProfile} />
+          <SignupForm action={signUp} />
         </CardContent>
       </Card>
     </div>
   );
 }
-

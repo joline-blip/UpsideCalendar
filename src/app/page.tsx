@@ -11,8 +11,12 @@ export default function Home() {
       <main className="mx-auto max-w-5xl px-6 py-10">
         <div className="grid gap-6 md:grid-cols-3">
           <a href="/login" className="rounded-xl border p-6 hover:bg-muted/40 transition-colors">
-            <div className="font-medium">Staff login</div>
-            <div className="mt-1 text-sm text-muted-foreground">Magic link sign-in</div>
+            <div className="font-medium">BA sign in</div>
+            <div className="mt-1 text-sm text-muted-foreground">Email + password</div>
+          </a>
+          <a href="/signup" className="rounded-xl border p-6 hover:bg-muted/40 transition-colors">
+            <div className="font-medium">BA sign up</div>
+            <div className="mt-1 text-sm text-muted-foreground">Create an account</div>
           </a>
           <a
             href="/staff/availability"
@@ -21,9 +25,9 @@ export default function Home() {
             <div className="font-medium">Availability</div>
             <div className="mt-1 text-sm text-muted-foreground">Set your available times</div>
           </a>
-          <a href="/admin" className="rounded-xl border p-6 hover:bg-muted/40 transition-colors">
+          <a href="/admin/login" className="rounded-xl border p-6 hover:bg-muted/40 transition-colors">
             <div className="font-medium">Admin</div>
-            <div className="mt-1 text-sm text-muted-foreground">Invite staff + event types</div>
+            <div className="mt-1 text-sm text-muted-foreground">Admin sign in</div>
           </a>
         </div>
 

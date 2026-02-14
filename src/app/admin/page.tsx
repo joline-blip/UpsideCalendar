@@ -1,34 +1,11 @@
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createMagicLink } from "@/lib/auth";
-import { sendMagicLinkEmail } from "@/lib/email";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { writeAuditLog } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
-
-async function inviteStaff(formData: FormData) {
-  "use server";
-  const admin = await requireAdmin();
-  const email = String(formData.get("email") ?? "").trim();
-  if (!email) return;
-  // Ensure staff role by default unless they’re explicitly in ADMIN_EMAILS.
-  const { link, user } = await createMagicLink(email);
-  await sendMagicLinkEmail(email, link);
-
-  await writeAuditLog({
-    actorUserId: admin.id,
-    entityType: "user",
-    entityId: user.id,
-    action: "invite_magic_link",
-    after: { email: user.email, role: user.role },
-  });
-}
 
 async function createEventType(formData: FormData) {
   "use server";
@@ -97,18 +74,10 @@ export default async function AdminHomePage() {
       <main className="mx-auto grid max-w-5xl gap-6 px-6 py-8 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Invite staff</CardTitle>
-            <CardDescription>Send a magic link to onboard a BA.</CardDescription>
+            <CardTitle>Staff</CardTitle>
+            <CardDescription>Brand ambassadors who have signed up.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={inviteStaff} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Staff email</Label>
-                <Input id="email" name="email" type="email" required />
-              </div>
-              <Button type="submit">Send invite</Button>
-            </form>
-            <Separator className="my-6" />
             <div className="space-y-2">
               <div className="text-sm font-medium">Recent staff</div>
               {staff.length === 0 ? (
