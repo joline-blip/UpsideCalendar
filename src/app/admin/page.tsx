@@ -109,6 +109,7 @@ export default async function AdminHomePage() {
                       ) : (
                         <span className="text-amber-700">• pending</span>
                       )}
+                      {!u.passwordHash ? <span className="text-rose-700"> • no password</span> : null}
                     </li>
                   ))}
                 </ul>

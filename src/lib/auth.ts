@@ -62,10 +62,11 @@ export async function setSessionCookie(session: { id: string; expiresAt: Date })
 export async function signInWithPassword(emailRaw: string, password: string) {
   const email = emailRaw.trim().toLowerCase();
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.passwordHash) return { ok: false as const };
+  if (!user) return { ok: false as const, reason: "no_user" as const };
+  if (!user.passwordHash) return { ok: false as const, reason: "no_password" as const };
 
   const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) return { ok: false as const };
+  if (!valid) return { ok: false as const, reason: "wrong_password" as const };
 
   if (user.role === "STAFF" && !user.approvedAt) {
     return { ok: false as const, reason: "not_approved" as const };

@@ -15,9 +15,9 @@ async function signIn(_prev: State, formData: FormData): Promise<State> {
   try {
     const result = await signInWithPassword(email, password);
     if (!result.ok) {
-      if ("reason" in result && result.reason === "not_approved") {
-        return { ok: false, formError: "Your account is pending admin approval." };
-      }
+      if (result.reason === "not_approved") return { ok: false, formError: "Your account is pending admin approval." };
+      if (result.reason === "no_password")
+        return { ok: false, formError: "No password is set for this email yet. Please use Sign up to set one." };
       return { ok: false, formError: "Invalid email or password." };
     }
     await setSessionCookie(result.session);
