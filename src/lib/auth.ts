@@ -115,7 +115,9 @@ export async function requireUser() {
 export async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user) redirect("/admin/login");
-  if (user.role !== "ADMIN") redirect("/login");
+  // Keep admin and BA flows separate: non-admins should go to admin login,
+  // not the BA login page.
+  if (user.role !== "ADMIN") redirect("/admin/login");
   return user;
 }
 
