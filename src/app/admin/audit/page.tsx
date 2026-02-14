@@ -43,9 +43,11 @@ export default async function AdminAuditPage({
             <Link className="underline" href="/admin/bookings">
               Bookings
             </Link>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/logout">Log out</Link>
-            </Button>
+            <form action="/logout" method="post">
+              <Button type="submit" variant="outline" size="sm">
+                Log out
+              </Button>
+            </form>
           </div>
         </div>
       </header>

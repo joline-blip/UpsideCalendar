@@ -15,7 +15,7 @@ function publicBaseUrl(req: NextRequest) {
   return req.nextUrl.origin.replace(/\/+$/, "");
 }
 
-export async function GET(req: NextRequest) {
+async function clearSessionIfPresent(req: NextRequest) {
   const sessionId = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (sessionId) {
     await prisma.session.updateMany({
@@ -23,6 +23,18 @@ export async function GET(req: NextRequest) {
       data: { revokedAt: new Date() },
     });
   }
+}
+
+// Never perform logout side-effects on GET. Next.js may prefetch GET links.
+export async function GET(req: NextRequest) {
+  const base = publicBaseUrl(req);
+  const referer = req.headers.get("referer") ?? "";
+  const dest = referer.includes("/admin") ? "/admin/login" : "/login";
+  return NextResponse.redirect(new URL(dest, base));
+}
+
+export async function POST(req: NextRequest) {
+  await clearSessionIfPresent(req);
 
   const base = publicBaseUrl(req);
   const referer = req.headers.get("referer") ?? "";
