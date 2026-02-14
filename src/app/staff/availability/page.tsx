@@ -24,28 +24,42 @@ function canEdit(startAt: Date) {
 async function createAvailability(formData: FormData) {
   "use server";
   const user = await requireUser();
-  const startAt = new Date(String(formData.get("startAt")));
-  const endAt = new Date(String(formData.get("endAt")));
+  const startRaw = String(formData.get("startAt") ?? "");
+  const endRaw = String(formData.get("endAt") ?? "");
+  const startAt = new Date(startRaw);
+  const endAt = new Date(endRaw);
 
-  if (!(startAt instanceof Date) || isNaN(startAt.getTime())) return;
-  if (!(endAt instanceof Date) || isNaN(endAt.getTime())) return;
-  if (endAt <= startAt) return;
+  if (isNaN(startAt.getTime()) || isNaN(endAt.getTime())) {
+    console.warn("[Availability] Invalid dates", { userId: user.id, startRaw, endRaw });
+    redirect("/staff/availability?msg=invalid_dates");
+  }
+  if (endAt <= startAt) {
+    redirect("/staff/availability?msg=end_before_start");
+  }
 
-  const block = await prisma.availabilityBlock.create({
-    data: {
-      userId: user.id,
-      startAt,
-      endAt,
-    },
-  });
+  try {
+    const block = await prisma.availabilityBlock.create({
+      data: {
+        userId: user.id,
+        startAt,
+        endAt,
+      },
+    });
 
-  await writeAuditLog({
-    actorUserId: user.id,
-    entityType: "availability_block",
-    entityId: block.id,
-    action: "create",
-    after: block,
-  });
+    await writeAuditLog({
+      actorUserId: user.id,
+      entityType: "availability_block",
+      entityId: block.id,
+      action: "create",
+      after: block,
+    });
+  } catch (err) {
+    console.error("[Availability] Failed to create block", { userId: user.id, startRaw, endRaw, err });
+    redirect("/staff/availability?msg=save_failed");
+  }
+
+  // Force a fresh render after mutation.
+  redirect("/staff/availability?msg=saved");
 }
 
 async function deleteAvailability(formData: FormData) {
@@ -67,11 +81,19 @@ async function deleteAvailability(formData: FormData) {
     action: "delete",
     before: block,
   });
+
+  redirect("/staff/availability?msg=deleted");
 }
 
-export default async function StaffAvailabilityPage() {
+export default async function StaffAvailabilityPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ msg?: string }>;
+}) {
   const user = await requireUser();
   if (!user.profileCompletedAt) redirect("/signup");
+  const sp = (await searchParams) ?? {};
+  const msg = sp.msg ?? "";
 
   const blocks = await prisma.availabilityBlock.findMany({
     where: { userId: user.id },
@@ -92,6 +114,19 @@ export default async function StaffAvailabilityPage() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
+        {msg ? (
+          <div className="rounded-md border px-4 py-3 text-sm">
+            {msg === "saved"
+              ? "Availability saved."
+              : msg === "deleted"
+                ? "Availability deleted."
+                : msg === "invalid_dates"
+                  ? "Please enter a valid start and end time."
+                  : msg === "end_before_start"
+                    ? "End time must be after the start time."
+                    : "Could not save. Please try again."}
+          </div>
+        ) : null}
         <Card>
           <CardHeader>
             <CardTitle>Add availability</CardTitle>
