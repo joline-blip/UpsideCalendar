@@ -2,11 +2,14 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAppConfig, setBaSignupMode } from "@/lib/config";
 import { writeAuditLog } from "@/lib/audit";
+import { hashPassword } from "@/lib/password";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +57,37 @@ async function approveStaff(formData: FormData) {
   redirect("/admin/settings");
 }
 
+async function setStaffPassword(formData: FormData) {
+  "use server";
+  const admin = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  if (!userId) return;
+  if (!password || password.length < 8) return;
+  if (password !== confirmPassword) return;
+
+  const before = await prisma.user.findUnique({ where: { id: userId } });
+  if (!before || before.role !== "STAFF") return;
+
+  const passwordHash = await hashPassword(password);
+  const after = await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+
+  await writeAuditLog({
+    actorUserId: admin.id,
+    entityType: "user",
+    entityId: after.id,
+    action: "set_staff_password",
+    before: { hadPassword: Boolean(before.passwordHash) },
+    after: { hadPassword: Boolean(after.passwordHash) },
+  });
+
+  redirect("/admin/settings?saved=1");
+}
+
 export default async function AdminSettingsPage({
   searchParams,
 }: {
@@ -66,6 +100,12 @@ export default async function AdminSettingsPage({
   const config = await getAppConfig();
   const pending = await prisma.user.findMany({
     where: { role: "STAFF", approvedAt: null },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+
+  const staff = await prisma.user.findMany({
+    where: { role: "STAFF" },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
@@ -170,6 +210,42 @@ export default async function AdminSettingsPage({
                         Approve
                       </Button>
                     </form>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Reset BA password</CardTitle>
+            <CardDescription>Admin-only: set a new password for a BA if they can’t log in.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {staff.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No staff accounts.</p>
+            ) : (
+              <div className="space-y-3">
+                {staff.map((u) => (
+                  <div key={u.id} className="rounded-md border p-3">
+                    <div className="text-sm font-medium">{u.email}</div>
+                    <div className="mt-2">
+                      <form action={setStaffPassword} className="grid gap-3 sm:grid-cols-3 sm:items-end">
+                        <input type="hidden" name="userId" value={u.id} />
+                        <div className="space-y-1">
+                          <Label>Password</Label>
+                          <Input name="password" type="password" minLength={8} required />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Confirm</Label>
+                          <Input name="confirmPassword" type="password" minLength={8} required />
+                        </div>
+                        <Button type="submit" variant="secondary">
+                          Set password
+                        </Button>
+                      </form>
+                    </div>
                   </div>
                 ))}
               </div>
