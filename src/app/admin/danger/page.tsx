@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { PurgeStaffDialog } from "@/app/admin/danger/PurgeStaffDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ async function purgeAllStaff(formData: FormData) {
   await requireAdmin();
 
   const confirm = String(formData.get("confirm") ?? "");
-  if (confirm !== "DELETE") return;
+  if (confirm.trim().toLowerCase() !== "delete bas") return;
 
   const staff = await prisma.user.findMany({
     where: { role: "STAFF" },
@@ -103,13 +104,10 @@ export default async function AdminDangerPage({
               Current BA count: <span className="font-medium text-foreground">{staffCount}</span>
             </div>
 
-            <form action={purgeAllStaff} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <input type="hidden" name="confirm" value="DELETE" />
-              <Button type="submit" variant="destructive">
-                Delete all BAs
-              </Button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <PurgeStaffDialog staffCount={staffCount} formAction={purgeAllStaff} />
               <div className="text-sm text-muted-foreground">This can’t be undone.</div>
-            </form>
+            </div>
           </CardContent>
         </Card>
       </main>
