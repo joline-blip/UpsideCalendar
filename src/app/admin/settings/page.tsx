@@ -155,6 +155,9 @@ export default async function AdminSettingsPage({
             <Link className="underline" href="/admin">
               Admin home
             </Link>
+            <Link className="underline" href="/admin/bas">
+              BAs
+            </Link>
             <div className="text-muted-foreground">{admin.email}</div>
             <form action="/logout" method="post">
               <Button type="submit" variant="outline" size="sm">

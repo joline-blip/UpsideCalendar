@@ -155,6 +155,9 @@ export default async function AdminSchedulePage({
             <Link className="underline" href="/admin/bookings">
               Bookings
             </Link>
+            <Link className="underline" href="/admin/bas">
+              BAs
+            </Link>
             <form action="/logout" method="post">
               <Button type="submit" variant="outline" size="sm">
                 Log out

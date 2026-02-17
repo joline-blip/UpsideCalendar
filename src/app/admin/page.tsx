@@ -73,6 +73,9 @@ export default async function AdminHomePage() {
             <Link className="underline" href="/admin/audit">
               Audit
             </Link>
+            <Link className="underline" href="/admin/bas">
+              BAs
+            </Link>
             <Link className="underline" href="/admin/settings">
               Settings{pendingCount ? ` (${pendingCount} pending)` : ""}
             </Link>

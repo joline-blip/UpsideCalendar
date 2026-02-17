@@ -74,6 +74,9 @@ export default async function AdminDangerPage({
             <Link className="underline" href="/admin/settings">
               Settings
             </Link>
+            <Link className="underline" href="/admin/bas">
+              BAs
+            </Link>
             <div className="text-muted-foreground">{admin.email}</div>
             <form action="/logout" method="post">
               <Button type="submit" variant="outline" size="sm">
