@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { addDays, addMinutes, format, isAfter, isBefore } from "date-fns";
 import Link from "next/link";
 import { writeAuditLog } from "@/lib/audit";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -33,41 +34,51 @@ async function createAdminBooking(formData: FormData) {
   const minEndAt = addMinutes(startAt, eventType.durationMinutes);
   const finalEndAt = isBefore(endAt, minEndAt) ? minEndAt : endAt;
 
-  const booking = await prisma.$transaction(async (tx) => {
-    const availability = await tx.availabilityBlock.findFirst({
-      where: {
-        userId: staffUserId,
-        status: "AVAILABLE",
-        startAt: { lte: startAt },
-        endAt: { gte: finalEndAt },
-      },
-    });
-    if (!availability) throw new Error("Not within availability");
+  let booking;
+  try {
+    booking = await prisma.$transaction(async (tx) => {
+      const availability = await tx.availabilityBlock.findFirst({
+        where: {
+          userId: staffUserId,
+          status: "AVAILABLE",
+          startAt: { lte: startAt },
+          endAt: { gte: finalEndAt },
+        },
+      });
+      if (!availability) throw new Error("NOT_WITHIN_AVAILABILITY");
 
-    const conflict = await tx.booking.findFirst({
-      where: {
-        staffUserId,
-        status: "BOOKED",
-        startAt: { lt: finalEndAt },
-        endAt: { gt: startAt },
-      },
-    });
-    if (conflict) throw new Error("Conflict");
+      const conflict = await tx.booking.findFirst({
+        where: {
+          staffUserId,
+          status: "BOOKED",
+          startAt: { lt: finalEndAt },
+          endAt: { gt: startAt },
+        },
+      });
+      if (conflict) throw new Error("CONFLICT");
 
-    return tx.booking.create({
-      data: {
-        eventTypeId,
-        staffUserId,
-        clientName,
-        clientEmail,
-        startAt,
-        endAt: finalEndAt,
-        createdBy: "ADMIN",
-        createdByUserId: admin.id,
-        lockedAt: new Date(),
-      },
+      return tx.booking.create({
+        data: {
+          eventTypeId,
+          staffUserId,
+          clientName,
+          clientEmail,
+          startAt,
+          endAt: finalEndAt,
+          createdBy: "ADMIN",
+          createdByUserId: admin.id,
+          lockedAt: new Date(),
+        },
+      });
     });
-  });
+  } catch (err) {
+    const code =
+      err instanceof Error && (err.message === "NOT_WITHIN_AVAILABILITY" || err.message === "CONFLICT")
+        ? err.message
+        : "UNKNOWN";
+    console.error("[AdminSchedule] create booking failed", { code, err });
+    redirect(`/admin/schedule?error=${encodeURIComponent(code)}`);
+  }
 
   await writeAuditLog({
     actorUserId: admin.id,
@@ -76,10 +87,19 @@ async function createAdminBooking(formData: FormData) {
     action: "create_admin",
     after: booking,
   });
+
+  redirect("/admin/schedule?success=1");
 }
 
-export default async function AdminSchedulePage() {
+export default async function AdminSchedulePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string; success?: string }>;
+}) {
   await requireAdmin();
+  const sp = (await searchParams) ?? {};
+  const error = sp.error ?? "";
+  const success = sp.success === "1";
 
   const now = new Date();
   const rangeEnd = addDays(now, 14);
@@ -130,6 +150,20 @@ export default async function AdminSchedulePage() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
+        {success ? (
+          <div className="rounded-md border border-emerald-600/30 bg-emerald-600/10 px-4 py-3 text-sm">
+            Booking created.
+          </div>
+        ) : null}
+        {error ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error === "NOT_WITHIN_AVAILABILITY"
+              ? "That time is not within the BA’s availability."
+              : error === "CONFLICT"
+                ? "That BA already has a booking that conflicts with this time."
+                : "Could not create the booking. Please try again."}
+          </div>
+        ) : null}
         <Card>
           <CardHeader>
             <CardTitle>Create booking (admin)</CardTitle>
