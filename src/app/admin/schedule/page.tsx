@@ -9,6 +9,7 @@ import { addDays, addMinutes, format, isAfter, isBefore } from "date-fns";
 import Link from "next/link";
 import { writeAuditLog } from "@/lib/audit";
 import { redirect } from "next/navigation";
+import { DateTime30m } from "@/components/DateTime30m";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,8 @@ async function createAdminBooking(formData: FormData) {
   const staffUserId = String(formData.get("staffUserId") ?? "");
   const clientName = String(formData.get("clientName") ?? "").trim();
   const clientEmail = String(formData.get("clientEmail") ?? "").trim().toLowerCase();
-  const startAt = new Date(String(formData.get("startAt") ?? ""));
-  const endAt = new Date(String(formData.get("endAt") ?? ""));
+  const startAt = new Date(Number(String(formData.get("startAtMs") ?? "")));
+  const endAt = new Date(Number(String(formData.get("endAtMs") ?? "")));
 
   if (!eventTypeId || !staffUserId || !clientName || !clientEmail) return;
   if (isNaN(startAt.getTime()) || isNaN(endAt.getTime())) return;
@@ -225,11 +226,11 @@ export default async function AdminSchedulePage({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startAt">Start</Label>
-                <Input id="startAt" name="startAt" type="datetime-local" step={1800} required />
+                <DateTime30m nameMs="startAtMs" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endAt">End</Label>
-                <Input id="endAt" name="endAt" type="datetime-local" step={1800} required />
+                <DateTime30m nameMs="endAtMs" />
               </div>
               <div className="md:col-span-2">
                 <Button type="submit">Create booking</Button>

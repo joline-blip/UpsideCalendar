@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { addDays, format, isAfter } from "date-fns";
 import Link from "next/link";
 import { writeAuditLog } from "@/lib/audit";
+import { DateTime30m } from "@/components/DateTime30m";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +46,8 @@ async function rescheduleBooking(formData: FormData) {
   const admin = await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
-  const startAt = new Date(String(formData.get("startAt") ?? ""));
-  const endAt = new Date(String(formData.get("endAt") ?? ""));
+  const startAt = new Date(Number(String(formData.get("startAtMs") ?? "")));
+  const endAt = new Date(Number(String(formData.get("endAtMs") ?? "")));
   if (!id) return;
   if (isNaN(startAt.getTime()) || isNaN(endAt.getTime())) return;
   if (!isAfter(endAt, startAt)) return;
@@ -230,11 +231,11 @@ export default async function AdminBookingsPage() {
                             <input type="hidden" name="id" value={b.id} />
                             <div className="space-y-2">
                               <Label>New start</Label>
-                              <Input name="startAt" type="datetime-local" required />
+                              <DateTime30m nameMs="startAtMs" />
                             </div>
                             <div className="space-y-2">
                               <Label>New end</Label>
-                              <Input name="endAt" type="datetime-local" required />
+                              <DateTime30m nameMs="endAtMs" />
                             </div>
                             <Button type="submit">Reschedule</Button>
                           </form>
