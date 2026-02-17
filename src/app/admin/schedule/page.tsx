@@ -12,6 +12,12 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+const RANGE_OPTIONS_DAYS = [14, 30, 60, 90] as const;
+
+function isHalfHourIncrement(d: Date) {
+  return d.getSeconds() === 0 && d.getMilliseconds() === 0 && d.getMinutes() % 30 === 0;
+}
+
 async function createAdminBooking(formData: FormData) {
   "use server";
   const admin = await requireAdmin();
@@ -26,6 +32,13 @@ async function createAdminBooking(formData: FormData) {
   if (!eventTypeId || !staffUserId || !clientName || !clientEmail) return;
   if (isNaN(startAt.getTime()) || isNaN(endAt.getTime())) return;
   if (!isAfter(endAt, startAt)) return;
+  const now = new Date();
+  if (startAt < now || endAt < now) {
+    redirect(`/admin/schedule?error=${encodeURIComponent("PAST_NOT_ALLOWED")}`);
+  }
+  if (!isHalfHourIncrement(startAt) || !isHalfHourIncrement(endAt)) {
+    redirect(`/admin/schedule?error=${encodeURIComponent("HALF_HOUR_ONLY")}`);
+  }
 
   const eventType = await prisma.eventType.findUnique({ where: { id: eventTypeId } });
   if (!eventType || !eventType.active) return;
@@ -94,15 +107,17 @@ async function createAdminBooking(formData: FormData) {
 export default async function AdminSchedulePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; success?: string }>;
+  searchParams?: Promise<{ error?: string; success?: string; days?: string }>;
 }) {
   await requireAdmin();
   const sp = (await searchParams) ?? {};
   const error = sp.error ?? "";
   const success = sp.success === "1";
+  const daysRaw = Number(sp.days ?? "");
+  const rangeDays = RANGE_OPTIONS_DAYS.includes(daysRaw as any) ? (daysRaw as (typeof RANGE_OPTIONS_DAYS)[number]) : 30;
 
   const now = new Date();
-  const rangeEnd = addDays(now, 14);
+  const rangeEnd = addDays(now, rangeDays);
 
   const [staff, eventTypes, blocks, bookings] = await Promise.all([
     prisma.user.findMany({
@@ -161,6 +176,10 @@ export default async function AdminSchedulePage({
               ? "That time is not within the BA’s availability."
               : error === "CONFLICT"
                 ? "That BA already has a booking that conflicts with this time."
+                : error === "PAST_NOT_ALLOWED"
+                  ? "You can’t create bookings in the past."
+                  : error === "HALF_HOUR_ONLY"
+                    ? "Please use 30-minute increments (e.g. 1:00, 1:30, 2:00)."
                 : "Could not create the booking. Please try again."}
           </div>
         ) : null}
@@ -203,11 +222,11 @@ export default async function AdminSchedulePage({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startAt">Start</Label>
-                <Input id="startAt" name="startAt" type="datetime-local" required />
+                <Input id="startAt" name="startAt" type="datetime-local" step={1800} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endAt">End</Label>
-                <Input id="endAt" name="endAt" type="datetime-local" required />
+                <Input id="endAt" name="endAt" type="datetime-local" step={1800} required />
               </div>
               <div className="md:col-span-2">
                 <Button type="submit">Create booking</Button>
@@ -218,7 +237,26 @@ export default async function AdminSchedulePage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Availability + bookings (next 14 days)</CardTitle>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <CardTitle>Availability + bookings (next {rangeDays} days)</CardTitle>
+              <form method="get" className="flex items-center gap-2 text-sm">
+                <label className="text-muted-foreground">Range</label>
+                <select
+                  name="days"
+                  defaultValue={String(rangeDays)}
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                >
+                  {RANGE_OPTIONS_DAYS.map((d) => (
+                    <option key={d} value={String(d)}>
+                      {d} days
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" variant="secondary" size="sm">
+                  Apply
+                </Button>
+              </form>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {blocks.length === 0 && bookings.length === 0 ? (

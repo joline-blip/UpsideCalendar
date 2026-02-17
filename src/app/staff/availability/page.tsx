@@ -21,6 +21,10 @@ function canEdit(startAt: Date) {
   return startAt.getTime() > addHours(new Date(), cutoffHours()).getTime();
 }
 
+function isHalfHourIncrement(d: Date) {
+  return d.getSeconds() === 0 && d.getMilliseconds() === 0 && d.getMinutes() % 30 === 0;
+}
+
 async function createAvailability(formData: FormData) {
   "use server";
   const user = await requireUser();
@@ -33,8 +37,15 @@ async function createAvailability(formData: FormData) {
     console.warn("[Availability] Invalid dates", { userId: user.id, startRaw, endRaw });
     redirect("/staff/availability?msg=invalid_dates");
   }
+  const now = new Date();
+  if (startAt < now || endAt < now) {
+    redirect("/staff/availability?msg=past_not_allowed");
+  }
   if (endAt <= startAt) {
     redirect("/staff/availability?msg=end_before_start");
+  }
+  if (!isHalfHourIncrement(startAt) || !isHalfHourIncrement(endAt)) {
+    redirect("/staff/availability?msg=half_hour_only");
   }
 
   try {
@@ -122,6 +133,10 @@ export default async function StaffAvailabilityPage({
                 ? "Availability deleted."
                 : msg === "invalid_dates"
                   ? "Please enter a valid start and end time."
+                  : msg === "past_not_allowed"
+                    ? "Availability cannot be set in the past."
+                    : msg === "half_hour_only"
+                      ? "Please use 30-minute increments (e.g. 1:00, 1:30, 2:00)."
                   : msg === "end_before_start"
                     ? "End time must be after the start time."
                     : "Could not save. Please try again."}
@@ -135,11 +150,11 @@ export default async function StaffAvailabilityPage({
             <form action={createAvailability} className="grid gap-4 sm:grid-cols-3 sm:items-end">
               <div className="space-y-2">
                 <Label htmlFor="startAt">Start</Label>
-                <Input id="startAt" name="startAt" type="datetime-local" required />
+                <Input id="startAt" name="startAt" type="datetime-local" step={1800} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endAt">End</Label>
-                <Input id="endAt" name="endAt" type="datetime-local" required />
+                <Input id="endAt" name="endAt" type="datetime-local" step={1800} required />
               </div>
               <Button type="submit">Add</Button>
             </form>
