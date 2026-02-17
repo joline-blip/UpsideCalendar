@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/PasswordInput";
+import { DeleteStaffDialog } from "@/app/admin/settings/DeleteStaffDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -89,14 +90,45 @@ async function setStaffPassword(formData: FormData) {
   redirect("/admin/settings?saved=1");
 }
 
+async function deleteStaff(formData: FormData) {
+  "use server";
+  const admin = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const confirm = String(formData.get("confirm") ?? "").trim().toLowerCase();
+  if (!userId) return;
+
+  const staffUser = await prisma.user.findUnique({ where: { id: userId } });
+  if (!staffUser || staffUser.role !== "STAFF") return;
+  if (confirm !== staffUser.email.trim().toLowerCase()) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.booking.deleteMany({ where: { staffUserId: staffUser.id } });
+    await tx.availabilityBlock.deleteMany({ where: { userId: staffUser.id } });
+    await tx.session.deleteMany({ where: { userId: staffUser.id } });
+    await tx.auditLog.deleteMany({ where: { actorUserId: staffUser.id } });
+    await tx.user.delete({ where: { id: staffUser.id } });
+  });
+
+  await writeAuditLog({
+    actorUserId: admin.id,
+    entityType: "user",
+    entityId: staffUser.id,
+    action: "delete_staff",
+    after: { email: staffUser.email },
+  });
+
+  redirect(`/admin/settings?deleted=${encodeURIComponent(staffUser.email)}`);
+}
+
 export default async function AdminSettingsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ saved?: string }>;
+  searchParams?: Promise<{ saved?: string; deleted?: string }>;
 }) {
   const admin = await requireAdmin();
   const sp = (await searchParams) ?? {};
   const saved = sp.saved === "1";
+  const deletedEmail = sp.deleted ?? "";
 
   const config = await getAppConfig();
   const pending = await prisma.user.findMany({
@@ -137,6 +169,11 @@ export default async function AdminSettingsPage({
         {saved ? (
           <div className="rounded-md border border-emerald-600/30 bg-emerald-600/10 px-4 py-3 text-sm">
             Saved.
+          </div>
+        ) : null}
+        {deletedEmail ? (
+          <div className="rounded-md border border-emerald-600/30 bg-emerald-600/10 px-4 py-3 text-sm">
+            Deleted BA: <span className="font-medium">{deletedEmail}</span>
           </div>
         ) : null}
 
@@ -221,7 +258,7 @@ export default async function AdminSettingsPage({
         <Card>
           <CardHeader>
             <CardTitle>Reset BA password</CardTitle>
-            <CardDescription>Admin-only: set a new password for a BA if they can’t log in.</CardDescription>
+            <CardDescription>Admin-only: set a new password or delete an individual BA account.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {staff.length === 0 ? (
@@ -230,8 +267,11 @@ export default async function AdminSettingsPage({
               <div className="space-y-3">
                 {staff.map((u) => (
                   <div key={u.id} className="rounded-md border p-3">
-                    <div className="text-sm font-medium">{u.email}</div>
-                    <div className="mt-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-sm font-medium">{u.email}</div>
+                      <DeleteStaffDialog email={u.email} userId={u.id} formAction={deleteStaff} />
+                    </div>
+                    <div className="mt-3">
                       <form action={setStaffPassword} className="grid gap-3 sm:grid-cols-3 sm:items-end">
                         <input type="hidden" name="userId" value={u.id} />
                         <div className="space-y-1">
