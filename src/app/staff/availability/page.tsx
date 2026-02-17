@@ -5,11 +5,10 @@ import { addHours, format } from "date-fns";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { writeAuditLog } from "@/lib/audit";
+import { AvailabilityPicker } from "@/app/staff/availability/AvailabilityPicker";
 
 export const dynamic = "force-dynamic";
 
@@ -28,13 +27,15 @@ function isHalfHourIncrement(d: Date) {
 async function createAvailability(formData: FormData) {
   "use server";
   const user = await requireUser();
-  const startRaw = String(formData.get("startAt") ?? "");
-  const endRaw = String(formData.get("endAt") ?? "");
-  const startAt = new Date(startRaw);
-  const endAt = new Date(endRaw);
+  const startMsRaw = String(formData.get("startAtMs") ?? "");
+  const endMsRaw = String(formData.get("endAtMs") ?? "");
+  const startMs = Number(startMsRaw);
+  const endMs = Number(endMsRaw);
+  const startAt = new Date(startMs);
+  const endAt = new Date(endMs);
 
   if (isNaN(startAt.getTime()) || isNaN(endAt.getTime())) {
-    console.warn("[Availability] Invalid dates", { userId: user.id, startRaw, endRaw });
+    console.warn("[Availability] Invalid dates", { userId: user.id, startMsRaw, endMsRaw });
     redirect("/staff/availability?msg=invalid_dates");
   }
   const now = new Date();
@@ -65,7 +66,7 @@ async function createAvailability(formData: FormData) {
       after: block,
     });
   } catch (err) {
-    console.error("[Availability] Failed to create block", { userId: user.id, startRaw, endRaw, err });
+    console.error("[Availability] Failed to create block", { userId: user.id, startMsRaw, endMsRaw, err });
     redirect("/staff/availability?msg=save_failed");
   }
 
@@ -147,17 +148,7 @@ export default async function StaffAvailabilityPage({
             <CardTitle>Add availability</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createAvailability} className="grid gap-4 sm:grid-cols-3 sm:items-end">
-              <div className="space-y-2">
-                <Label htmlFor="startAt">Start</Label>
-                <Input id="startAt" name="startAt" type="datetime-local" step={1800} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endAt">End</Label>
-                <Input id="endAt" name="endAt" type="datetime-local" step={1800} required />
-              </div>
-              <Button type="submit">Add</Button>
-            </form>
+            <AvailabilityPicker action={createAvailability} />
             <p className="mt-3 text-sm text-muted-foreground">
               You can edit/delete availability until {cutoffHours()} hours before the start time.
             </p>
